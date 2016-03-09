@@ -99,7 +99,9 @@ func initialCNF3() uint8 {
 
 func initialRXB0CTRL() uint8 {
 	// Accept all messages
-	return (3 << bits["RXM0"])
+	return (3 << bits["RXM0"]) |
+		// Write message into RXB1 if RXB0 is full
+		(1 << bits["BUKT"])
 }
 
 func initialCANCTRL() uint8 {

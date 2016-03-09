@@ -5,7 +5,8 @@ package mcp2515
 var commands = map[string]uint8{
 	"RESET":       0xC0,
 	"READ":        0x03,
-	"READ_RX":     0x90,
+	"READ_RX0":    0x90,
+	"READ_RX1":    0x94,
 	"WRITE":       0x02,
 	"WRITE_TX":    0x40,
 	"RTS":         0x80,
@@ -263,4 +264,15 @@ var bits = map[string]uint8{
 	"DLC2": 2,
 	"DLC1": 1,
 	"DLC0": 0,
+}
+
+var statusBits = map[string]uint8 {
+	"RX0IF": 0,
+	"RX1IF": 1,
+	"TX0REQ": 2,
+	"TX0IF": 3,
+	"TX1REQ": 4,
+	"TX1IF": 5,
+	"TX2REQ": 6,
+	"TX2IF": 7,
 }
