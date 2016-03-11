@@ -4,6 +4,7 @@ package mcp2515
 import (
 	"fmt"
 	"github.com/golang/glog"
+	"time"
 )
 
 func (d *MCP2515) writeRegister(register string, data ...uint8) error {
@@ -20,7 +21,7 @@ func (d *MCP2515) writeRegister(register string, data ...uint8) error {
 	return d.Bus.TransferAndReceiveData(buffer)
 }
 
-func (d *MCP2515) readRegister(register string, length uint8) ([]uint8, error) {
+func (d *MCP2515) readRegister(register string, length int) ([]uint8, error) {
 	address, err := registerAddress(register)
 	if err != nil {
 		return nil, err
@@ -29,20 +30,25 @@ func (d *MCP2515) readRegister(register string, length uint8) ([]uint8, error) {
 	glog.V(2).Infof("mcp2515: readRegister %v", register)
 
 	command := []uint8{commands["READ"], address}
-	data := make([]uint8, length)
-	buffer := append(command, data...)
+	buffer := make([]uint8, len(command) + length)
+	copy(buffer, command)
 
 	err = d.Bus.TransferAndReceiveData(buffer)
+	data := buffer[len(command):]
 	return data, err
 }
 
 func (d *MCP2515) readStatus() (uint8, error) {
 	glog.V(2).Infof("mcp2515: readStatus")
 	command := []uint8{commands["READ_STATUS"]}
-	data := uint8(0)
-	buffer := append(command, data)
+	buffer := make([]uint8, len(command) + 1)
+	copy(buffer, command)
+
 	err := d.Bus.TransferAndReceiveData(buffer)
+
+	data := buffer[len(command)]
 	glog.V(2).Infof("status=%v", data)
+
 	return data, err
 }
 
@@ -59,55 +65,90 @@ func (d *MCP2515) checkFreeBuffer() bool {
 		(1 << statusBits["TX1REQ"]) |
 		(1 << statusBits["TX2REQ"]))
 	status, err := d.readStatus()
-	return err == nil && (status&bufferFulls) != bufferFulls
+	return err == nil && status&bufferFulls != bufferFulls
 }
 
-func (d *MCP2515) receiveMessage() (*Message, bool, error) {
-	status, err := d.readStatus()
-	if err != nil {
-		return nil, false, err
-	}
+func (d *MCP2515) receiveMessage(rxBuffer uint8) (*Message, error) {
+	glog.V(2).Infof("mcp2515: receive")
 
-	commandName := ""
-
-	if isBitSet(status, statusBits["RX0IF"]) {
-		commandName = "READ_RX0"
-	} else if isBitSet(status, statusBits["RX1IF"]) {
+	commandName := "READ_RX0"
+	if rxBuffer == 1 {
 		commandName = "READ_RX1"
-	} else {
-		return nil, false, nil
 	}
-
 	command := []uint8{commands[commandName]}
 
 	// 4 bytes for id, 1 byte for length, 8 bytes for data
-	data := [13]uint8{}
-	buffer := append(command, data[:]...)
+	buffer := make([]uint8, len(command) + 13)
+	copy(buffer, command)
 
-	err = d.Bus.TransferAndReceiveData(buffer)
+	err := d.Bus.TransferAndReceiveData(buffer)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 
+	data := buffer[len(command):]
 	message := Message{
-		id:       0,
-		extended: (data[1] & 0x8) != 0,
-		length:   (data[2] & 0xF),
+		Id:       0,
+		Extended: (data[1] & (1 << bits["IDE"])) != 0,
+		Length:   (data[2] & 0xF),
+		Time:     time.Now(),
 	}
 
-	if message.extended {
-		message.id = (uint32(data[0]) << 21) |
+	if message.Extended {
+		// 29 bit extended identifier
+		message.Id = (uint32(data[0]) << 21) |
 			(uint32(data[1]&0xE0) << 13) |
 			(uint32(data[2]&0x03) << 16) |
 			uint32(data[3])
 
 	} else {
 		// standard 11 bit identifier
-		message.id = (uint32(data[0]) << 3) |
+		message.Id = (uint32(data[0]) << 3) |
 			(uint32(data[1]) >> 5)
 	}
+	copy(message.Data[:], data[5:])
 
-	return &message, true, nil
+	return &message, nil
+}
+
+func (d *MCP2515) transmitMessage(txBuffer uint8, message *Message) error {
+	glog.V(2).Infof("mcp2515: transmit")
+
+	commandName := "WRITE_TX0"
+	if txBuffer == 1 {
+		commandName = "WRITE_TX1"
+	} else if txBuffer == 2 {
+		commandName = "WRITE_TX2"
+	}
+	command := []uint8{commands[commandName]}
+
+	// 4 bytes for id, 1 byte for length, 8 bytes for data
+	data := make([]uint8, 13)
+
+	if message.Extended {
+		data[0] = uint8(message.Id >> 21)
+		data[1] = (uint8(message.Id>>13) & 0xe0) |
+			(1 << bits["EXIDE"]) |
+			(uint8(message.Id>>16) & 0x03)
+		data[2] = uint8(message.Id >> 8)
+		data[3] = uint8(message.Id)
+	} else {
+		data[0] = uint8(message.Id >> 3)
+		data[1] = uint8(message.Id << 5)
+	}
+	data[4] = message.Length
+	copy(data[5:], message.Data[:])
+
+	buffer := append(command, data...)
+
+	err := d.Bus.TransferAndReceiveData(buffer)
+	if err != nil {
+		return err
+	}
+
+	// Initiate transmission
+	command = []uint8{commands["RTS"] | (1<<txBuffer)}
+	return d.Bus.TransferAndReceiveData(command)
 }
 
 func registerAddress(register string) (uint8, error) {

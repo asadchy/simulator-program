@@ -1,9 +1,14 @@
 // MCP2515 Stand-Alone CAN Interface
 package mcp2515
 
+import (
+	"time"
+)
+
 type Message struct {
-	id uint32
-	extended bool
-	length uint8
-	data [8]uint8
+	Id       uint32
+	Extended bool
+	Length   uint8
+	Data     [8]uint8
+	Time     time.Time
 }
