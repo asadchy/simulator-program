@@ -20,7 +20,9 @@ type MCP2515 struct {
 	mu          sync.RWMutex
 }
 
-var prescalers = map[int]uint8{
+
+// Prescalers for a 16 MHz oscillator with a 8 Time Quanta bit time
+var prescalers = map[int]int{
 	125000: 7,
 	250000: 3,
 	500000: 1,
@@ -47,7 +49,9 @@ func (d *MCP2515) Setup(baudRate int) error {
 	glog.V(1).Infof("mcp2515: setup")
 
 	d.baudRate = baudRate
-	prescaler, ok := prescalers[baudRate]
+	//prescaler, ok := prescalers[baudRate]
+	prescaler := 3
+	ok := true
 	if !ok {
 		return fmt.Errorf("Baud rate not supported %v", baudRate)
 	}
@@ -84,17 +88,23 @@ func (d *MCP2515) Setup(baudRate int) error {
 }
 
 // Configures baud rate and synchronization jump width (SJW)
-func initialCNF1(prescaler uint8) uint8 {
-	return prescaler
+func initialCNF1(prescaler int) uint8 {
+	// SJW = 1 TQ
+	return uint8(prescaler)
 }
 
+// Configure bit timing to have 1 bit = 8 TQ
 func initialCNF2() uint8 {
+	// PRSEG = 1 TQ
+	// PHSEG1 = 3 TQ
+	// BTLMODE = 1 => Use CNF3 for PHSEG2
 	return (1 << bits["BTLMODE"]) |
-		(1 << bits["PHSEG11"])
+		(2 << bits["PHSEG10"])
 }
 
 func initialCNF3() uint8 {
-	return (1 << bits["PHSEG21"])
+	// PHSEG2 = 3 TQ
+	return (2 << bits["PHSEG20"])
 }
 
 func initialRXB0CTRL() uint8 {
