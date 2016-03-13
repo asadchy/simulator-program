@@ -20,7 +20,6 @@ type MCP2515 struct {
 	mu          sync.RWMutex
 }
 
-
 // Prescalers for a 16 MHz oscillator with a 8 Time Quanta bit time
 var prescalers = map[int]int{
 	125000: 7,
@@ -49,9 +48,7 @@ func (d *MCP2515) Setup(baudRate int) error {
 	glog.V(1).Infof("mcp2515: setup")
 
 	d.baudRate = baudRate
-	//prescaler, ok := prescalers[baudRate]
-	prescaler := 3
-	ok := true
+	prescaler, ok := prescalers[baudRate]
 	if !ok {
 		return fmt.Errorf("Baud rate not supported %v", baudRate)
 	}
@@ -70,13 +67,13 @@ func (d *MCP2515) Setup(baudRate int) error {
 		initialCNF1(prescaler),
 	)
 
-	data, err := d.readRegister("CNF1", 1)
+	data, err := d.readRegister("CNF2", 1)
 
 	if err != nil {
 		return err
 	}
 
-	if data[0] != initialCNF1(prescaler) {
+	if data[0] != initialCNF2() {
 		return errors.New("CAN chip not responding")
 	}
 
@@ -99,7 +96,8 @@ func initialCNF2() uint8 {
 	// PHSEG1 = 3 TQ
 	// BTLMODE = 1 => Use CNF3 for PHSEG2
 	return (1 << bits["BTLMODE"]) |
-		(2 << bits["PHSEG10"])
+		(2 << bits["PHSEG10"]) |
+		(0 << bits["PRSEG"])
 }
 
 func initialCNF3() uint8 {

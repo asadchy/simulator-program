@@ -13,7 +13,7 @@ func (d *MCP2515) writeRegister(register string, data ...uint8) error {
 		return err
 	}
 
-	glog.V(2).Infof("mcp2515: writeRegister %v", register)
+	glog.V(2).Infof("mcp2515: writeRegister %v=%v", register, data)
 
 	command := []uint8{commands["WRITE"], address}
 	buffer := append(command, data...)
@@ -27,19 +27,19 @@ func (d *MCP2515) readRegister(register string, length int) ([]uint8, error) {
 		return nil, err
 	}
 
-	glog.V(2).Infof("mcp2515: readRegister %v", register)
-
 	command := []uint8{commands["READ"], address}
 	buffer := make([]uint8, len(command) + length)
 	copy(buffer, command)
 
 	err = d.Bus.TransferAndReceiveData(buffer)
 	data := buffer[len(command):]
+
+	glog.V(2).Infof("mcp2515: readRegister %v=%v", register, data)
+
 	return data, err
 }
 
 func (d *MCP2515) readStatus() (uint8, error) {
-	glog.V(2).Infof("mcp2515: readStatus")
 	command := []uint8{commands["READ_STATUS"]}
 	buffer := make([]uint8, len(command) + 1)
 	copy(buffer, command)
@@ -47,7 +47,7 @@ func (d *MCP2515) readStatus() (uint8, error) {
 	err := d.Bus.TransferAndReceiveData(buffer)
 
 	data := buffer[len(command)]
-	glog.V(2).Infof("status=%v", data)
+	glog.V(4).Infof("mcp2515: readStatus=%v", data)
 
 	return data, err
 }
@@ -90,7 +90,7 @@ func (d *MCP2515) receiveMessage(rxBuffer uint8) (*Message, error) {
 	message := Message{
 		Id:       0,
 		Extended: (data[1] & (1 << bits["IDE"])) != 0,
-		Length:   (data[2] & 0xF),
+		Length:   (data[4] & 0xF),
 		Time:     time.Now(),
 	}
 

@@ -112,10 +112,11 @@ func sendMessages(txChan mcp2515.MsgChan) {
 	i := uint8(0)
 	for {
 		var message mcp2515.Message
-		message.Id = 0x110
+		message.Id = 0x2AA
 		message.Length = 8
-		message.Data[0] = i
-		message.Data[1] = 1
+		for j := 0; j < 8; j++ {
+			message.Data[j] = 0xAA
+		}
 		i += 1
 
 		select {
