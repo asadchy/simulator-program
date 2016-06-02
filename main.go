@@ -11,7 +11,7 @@ import (
 	"github.com/kidoman/embd"
 	_ "github.com/kidoman/embd/host/rpi"
 
-	"github.com/carloop/simulator/mcp2515"
+	"github.com/carloop/simulator-program/mcp2515"
 )
 
 func main() {
