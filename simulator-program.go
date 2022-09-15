@@ -35,7 +35,7 @@ func main() {
 	defer spi.Close()
 
 	canDevice := mcp2515.New(spi)
-	err = canDevice.Setup(500000)
+	err = canDevice.Setup(250000)
 
 	if err != nil {
 		printError(err)

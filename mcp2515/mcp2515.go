@@ -20,11 +20,10 @@ type MCP2515 struct {
 	mu          sync.RWMutex
 }
 
-// Prescalers for a 16 MHz oscillator with a 8 Time Quanta bit time
+// Prescalers for a 12 MHz oscillator with a 8 Time Quanta bit time
 var prescalers = map[int]int{
-	125000: 7,
-	250000: 3,
-	500000: 1,
+	125000: 5,
+	250000: 2,
 }
 
 // New creates a new MCP2515 CAN driver
