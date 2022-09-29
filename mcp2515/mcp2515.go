@@ -22,8 +22,9 @@ type MCP2515 struct {
 
 // Prescalers for a 12 MHz oscillator with a 8 Time Quanta bit time
 var prescalers = map[int]int{
-	125000: 5,
-	250000: 2,
+	125000: 3,
+	250000: 1,
+	500000: 0,
 }
 
 // New creates a new MCP2515 CAN driver
@@ -85,23 +86,23 @@ func (d *MCP2515) Setup(baudRate int) error {
 
 // Configures baud rate and synchronization jump width (SJW)
 func initialCNF1(prescaler int) uint8 {
-	// SJW = 1 TQ
-	return uint8(prescaler)
+	// SJW = 4 TQ
+	return (3 << bits["SJW0"]) | (uint8(prescaler))
 }
 
 // Configure bit timing to have 1 bit = 8 TQ
 func initialCNF2() uint8 {
-	// PRSEG = 1 TQ
-	// PHSEG1 = 3 TQ
+	// PRSEG = 3 TQ
+	// PHSEG1 = 4 TQ
 	// BTLMODE = 1 => Use CNF3 for PHSEG2
 	return (1 << bits["BTLMODE"]) |
-		(2 << bits["PHSEG10"]) |
-		(0 << bits["PRSEG"])
+		(3 << bits["PHSEG10"]) |
+		(2 << bits["PRSEG"])
 }
 
 func initialCNF3() uint8 {
-	// PHSEG2 = 3 TQ
-	return (2 << bits["PHSEG20"])
+	// PHSEG2 = 4 TQ
+	return (3 << bits["PHSEG20"])
 }
 
 func initialRXB0CTRL() uint8 {
